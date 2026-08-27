@@ -57,16 +57,24 @@ customizado pelo tenant sem depender de nome/alias.
 
 ## Telemetria e atributos
 
+> Prefixo `/api/plugins/telemetry` confirmado como constante `TELEMETRY_URL_PREFIX` no
+> código-fonte (`TbUrlConstants.java`); paths abaixo conferidos contra os
+> `@GetMapping`/`@PostMapping`/`@DeleteMapping` reais do `TelemetryController.java`.
+
 | Método | Path | Descrição |
 |---|---|---|
+| GET | `/api/plugins/telemetry/{entityType}/{entityId}/keys/attributes[/{scope}]` | Listar chaves de atributos existentes (opcionalmente por scope) |
 | GET | `/api/plugins/telemetry/{entityType}/{entityId}/keys/timeseries` | Listar chaves de timeseries existentes |
-| GET | `/api/plugins/telemetry/{entityType}/{entityId}/values/timeseries?keys=...` | Última(s) leitura(s) ou série no intervalo |
-| POST | `/api/plugins/telemetry/{entityType}/{entityId}/timeseries/{scope}` | Inserir telemetria (uso admin/backfill) |
-| DELETE | `/api/plugins/telemetry/{entityType}/{entityId}/timeseries/delete?keys=...` | Apagar timeseries |
-| GET | `/api/plugins/telemetry/{entityType}/{entityId}/attributes` | Todos os atributos (todas as scopes) |
-| GET | `/api/plugins/telemetry/{entityType}/{entityId}/attributes/{scope}` | Atributos de uma scope |
+| GET | `/api/plugins/telemetry/{entityType}/{entityId}/values/attributes[/{scope}]` | Valores de atributos |
+| GET | `/api/plugins/telemetry/{entityType}/{entityId}/values/timeseries?keys=...` | Última(s) leitura(s), ou série no intervalo com `startTs`/`endTs` |
+| GET | `/api/plugins/telemetry/{entityType}/{entityId}/values/timeseries/history?keys=...&startTs=...&endTs=...` | Endpoint dedicado para consulta histórica (variante do endpoint acima) |
 | POST | `/api/plugins/telemetry/{entityType}/{entityId}/attributes/{scope}` | Setar atributos |
-| DELETE | `/api/plugins/telemetry/{entityType}/{entityId}/{scope}?keys=...` | Remover atributos |
+| POST | `/api/plugins/telemetry/{entityType}/{entityId}/timeseries/{scope}` | Inserir telemetria (uso admin/backfill) |
+| POST | `/api/plugins/telemetry/{entityType}/{entityId}/timeseries/{scope}/{ttl}` | Idem, com TTL (em segundos) para a telemetria inserida |
+| POST | `/api/plugins/telemetry/{deviceId}/{scope}` | Atalho legado só para device (sem precisar `entityType`) |
+| DELETE | `/api/plugins/telemetry/{entityType}/{entityId}/timeseries/delete?keys=...` | Apagar timeseries |
+| DELETE | `/api/plugins/telemetry/{entityType}/{entityId}/{scope}?keys=...` | Remover atributos de uma scope |
+| DELETE | `/api/plugins/telemetry/{deviceId}/{scope}?keys=...` | Idem, atalho legado só para device |
 
 ## API de transporte do device (usa access token, não JWT)
 

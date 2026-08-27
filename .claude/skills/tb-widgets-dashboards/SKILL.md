@@ -226,6 +226,31 @@ real do tenant. Ainda assim, confirmar disponibilidade de um bundle/widget espec
 galeria da instância antes de assumir que existe — a lista de bundles de sistema pode
 variar por versão.
 
+## Troubleshooting: widget "não atualiza" com telemetria nova
+
+Tema recorrente no issue tracker oficial (várias issues distintas relatando o mesmo
+sintoma — dados chegando no backend mas não aparecendo/atualizando no widget). Ordem de
+verificação, da causa mais comum para a mais rara:
+
+1. **Time window fixo no passado**: se o widget/dashboard está configurado com um
+   intervalo `Range` (datas fixas) em vez de `Realtime`, dado novo cai fora da janela
+   configurada por definição — não é bug, é comportamento correto de uma janela fixa.
+   Checar se o Time Window realmente está em modo `Realtime`/`Last X` antes de investigar
+   mais fundo.
+2. **WebSocket bloqueado**: proxy/load balancer na frente do ThingsBoard sem suporte a
+   upgrade de conexão HTTP→WebSocket derruba silenciosamente a subscription em tempo
+   real — sintoma é a UI carregar normalmente mas nunca atualizar sozinha. Ver seção
+   Troubleshooting da skill `tb-deploy-admin`.
+3. **Widget custom sem `ctx.detectChanges()`**: se o `controllerScript` manipula o DOM
+   ou estado manualmente fora do ciclo padrão do Angular (comum em widgets que fazem
+   fetch adicional ou mutam `ctx.$scope` fora de `onDataUpdated`), a UI pode não
+   re-renderizar sem uma chamada explícita — ver skill `tb-widgets-dashboards`, API do
+   `ctx.detectChanges()`.
+4. **Datasource/alias resolvendo para a entidade errada** (ou nenhuma): conferir se o
+   entity alias do widget realmente resolve para o device que está enviando a
+   telemetria — sintoma idêntico ("nada atualiza") mas causa totalmente diferente das
+   anteriores.
+
 ## Referência
 
 - [references/widget-controller-api.md](references/widget-controller-api.md) — mais

@@ -8,16 +8,19 @@ description: Criação, edição e depuração de Rule Chains do ThingsBoard (fi
 ## Antes de começar
 
 Os `type` de cada rule node (ex: `org.thingsboard.rule.engine.filter.TbJsFilterNode`) são
-nomes de classe Java internos que **mudam entre versões e entre CE/PE**, e um `type`
-incorreto falha silenciosamente ou dá erro ao importar. Sempre que possível:
+nomes de classe Java. Para nodes **CE**, [references/node-types.md](references/node-types.md)
+agora traz `type`, nome exibido e `connections[].type` válidos **verificados direto no
+código-fonte oficial** (`github.com/thingsboard/thingsboard`), não mais aproximação —
+pode ser usado como fonte confiável para gerar JSON de rule chain via API. Para nodes
+**exclusivos de PE/Cloud** (closed-source, não estão nesse repo), a confiança é menor:
 
-1. Peça para o usuário **exportar** uma rule chain existente da instância
-   (Rule Chains → abrir → menu → Export) e use esse JSON como template real/verdadeiro
-   em vez de escrever os nodes inteiramente de memória.
-2. Se não houver rule chain de referência disponível, use a tabela em
-   [references/node-types.md](references/node-types.md) como ponto de partida, mas avise
-   que os `type` exatos devem ser confirmados na paleta de nodes da instância antes de
-   importar via API/UI.
+1. Se for node PE (marcado como tal no catálogo) ou a versão instalada divergir da
+   branch `master` do GitHub, peça para o usuário **exportar** uma rule chain existente
+   da instância (Rule Chains → abrir → menu → Export) e use esse JSON como template
+   real em vez de confiar de memória.
+2. Sempre confirmar `connections[].type` contra a tabela/export antes de gerar JSON —
+   a maioria dos nodes usa `Success`/`Failure`, mas há exceções reais (ex: `create alarm`
+   usa `Created`/`Updated`/`False`) que quebram silenciosamente se erradas.
 3. Prefira editar a estrutura de um chain existente (adicionar/remover nodes e
    conexões) a recriar o chain do zero.
 
@@ -171,16 +174,25 @@ janelas históricas/rolling, múltiplas saídas). Detalhes e exemplos de ambos e
   de script e o `metadata`/`msgType` em cada etapa — é a forma mais rápida de achar por
   que uma mensagem não seguiu o caminho esperado.
 - Debug mode tem custo de performance/storage — desligar em produção depois de investigar.
+- **Erro `Can't compile script: null`** (em Script Filter/Transformation): mensagem
+  historicamente pouco útil, não mostra onde está o erro de sintaxe
+  ([thingsboard#3449](https://github.com/thingsboard/thingsboard/issues/3449)). Se
+  aparecer, não adianta reler o erro em busca de linha/coluna — comentar/remover trechos
+  do script até isolar a parte que quebra a compilação (bisecção manual), ou testar o
+  script isoladamente no botão de preview/test do editor de node antes de salvar.
 
 ## PE
 
-Professional Edition/Cloud tem nodes exclusivos além do CE, confirmados na doc oficial —
-marcados **(PE/Cloud)** em [references/node-types.md](references/node-types.md). Os mais
-relevantes: Duplicate to Group / Duplicate to Group by Name / Duplicate to Related
-(Transformation), Add to Group / Change Owner / Generate Report / Generate Dashboard
-Report / Save to Custom Table / Integration Downlink / Remove from Group (Action), e
-Twilio SMS / Twilio Voice (External). Ainda assim, confirmar na paleta de nodes da
-instância antes de assumir disponibilidade, pois isso pode mudar por versão.
+Professional Edition/Cloud tem nodes exclusivos além do CE — confirmado cruzando a doc
+oficial com o código-fonte público (nodes que existem no repo CE **não** são PE-only,
+mesmo que a doc os liste ao lado de features PE). Lista corrigida: Duplicate to Group /
+Duplicate to Group by Name / Duplicate to Related (Transformation), Add to Group /
+Change Owner / Generate Report / Generate Dashboard Report / Integration Downlink /
+Remove from Group (Action), e Twilio SMS / Twilio Voice (External). **Save to Custom
+Table** (`TbSaveToCustomCassandraTableNode`) — diferente do que a versão anterior deste
+arquivo dizia — **existe no código CE público**, não é exclusivo de PE. Ainda assim,
+confirmar na paleta de nodes da instância antes de assumir disponibilidade de qualquer
+um desses, pois isso pode mudar por versão.
 
 ## Referência
 

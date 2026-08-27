@@ -26,13 +26,17 @@ propor passos concretos:
 | **Monolítico** (`tb` único container/processo) | Ambientes pequenos/médios, PoC, single-tenant, menor complexidade operacional |
 | **Microsserviços** (`tb-core`, `tb-rule-engine`, `tb-transport-*`, `tb-web-ui` separados + Kafka/Zookeeper) | Alta escala, necessidade de escalar componentes independentemente, HA real |
 
-Fila (`queue`) e cache são configuráveis independente do modo:
+Fila (`queue`) e cache são configuráveis independente do modo. **Confirmado direto no
+`thingsboard.yml` do repositório oficial** (`TB_QUEUE_TYPE`, comentário do próprio
+arquivo): no **CE público, as únicas opções são `in-memory` ou `kafka`** — RabbitMQ, AWS
+SQS, GCP Pub/Sub e Azure Service Bus **não aparecem na configuração CE**, então tratar
+como recursos de PE/Cloud, não assumir disponibilidade em instalação CE.
 
 - Fila: `in-memory` (só monolito/dev — mensagens **se perdem** em restart), `kafka`
   (padrão em produção/microsserviços — durável, persiste entre restarts, obrigatório em
-  cluster), `rabbitmq`, `aws-sqs`, `pubsub` (GCP), `service-bus` (Azure)
-- Cache: `caffeine` (in-process, só single instance) ou `redis` (compartilhado entre
-  instâncias — obrigatório se houver mais de um `tb-core`)
+  cluster). RabbitMQ/AWS SQS/GCP Pub/Sub/Azure Service Bus — só PE/Cloud.
+- Cache: `caffeine` (in-process, só single instance, default) ou `redis` (compartilhado
+  entre instâncias — obrigatório se houver mais de um `tb-core`). Env var: `CACHE_TYPE`.
 
 ### Filas do Rule Engine (dentro do backend de queue escolhido)
 
@@ -76,15 +80,25 @@ Portas padrão a mapear:
 | 7070 | Edge RPC (se usar ThingsBoard Edge) |
 | 9090 | gRPC transport (comunicação interna entre microsserviços) |
 
-Variáveis de ambiente centrais (nomes indicativos, confirmar contra `.env`/docs da
-versão exata):
+Variáveis de ambiente centrais — **confirmadas direto no `thingsboard.yml` do
+repositório oficial** (nomes e defaults exatos, não aproximação):
 
-- `DATABASE_TS_TYPE`: `sql` | `cassandra` | `timescale` (define onde fica timeseries)
-- `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD`: conexão com o banco relacional
-- `TB_QUEUE_TYPE`: tipo de fila (ver acima)
-- `CACHE_TYPE`: `caffeine` | `redis`
-- `TB_SERVICE_ID` / licença: em PE, variáveis específicas de ativação de licença
-  (nome exato varia por versão — checar doc oficial de instalação PE correspondente)
+- `DATABASE_TS_TYPE` (default `sql`): `sql` | `cassandra` | `timescale` — onde fica
+  timeseries. `DATABASE_TS_LATEST_TYPE` (default `sql`) é uma variável **separada** para
+  onde ficam os últimos valores (latest) — pode divergir de `DATABASE_TS_TYPE` em modo
+  híbrido.
+- `SPRING_DATASOURCE_URL` (default `jdbc:postgresql://localhost:5432/thingsboard`) /
+  `SPRING_DATASOURCE_USERNAME` (default `postgres`) / `SPRING_DATASOURCE_PASSWORD`
+  (default `postgres`): conexão com o banco relacional. `SPRING_DATASOURCE_MAXIMUM_POOL_SIZE`
+  (default `16`) controla o pool de conexões (HikariCP).
+- `TB_QUEUE_TYPE` (default `in-memory`): só `in-memory` ou `kafka` no CE — ver nota
+  acima. `TB_QUEUE_PREFIX` prefixa todos os tópicos/consumer groups (útil para múltiplas
+  instâncias no mesmo cluster Kafka).
+- `CACHE_TYPE` (default `caffeine`): `caffeine` | `redis`.
+- `TB_SERVICE_ID` (default vazio): identifica esta instância dentro de um cluster —
+  relevante tanto para coordenação entre nós quanto para ativação de licença PE. Nome
+  exato de outras variáveis de licença PE varia por versão — checar doc oficial de
+  instalação PE correspondente.
 
 Ver [references/docker-compose-example.yml](references/docker-compose-example.yml) para
 um esqueleto ilustrativo (monolítico, Postgres).
@@ -111,6 +125,16 @@ Fluxo geral (validar passo a passo contra a doc oficial da versão específica):
    erros de migração.
 6. Em microsserviços, atualizar todos os componentes (`tb-core`, `tb-rule-engine`,
    transports) para a mesma versão — não misturar versões entre componentes.
+
+Isso não é cautela hipotética — é um padrão recorrente no issue tracker do
+ThingsBoard: mudança de configuração de SSL/credenciais quebrando após upgrade
+([thingsboard#5617](https://github.com/thingsboard/thingsboard/issues/5617)), instância
+que não conecta mais depois de atualizar
+([thingsboard#5239](https://github.com/thingsboard/thingsboard/issues/5239)), e saltos
+de versão causando problemas variados
+([thingsboard#11630](https://github.com/thingsboard/thingsboard/issues/11630)). Testar
+o upgrade num ambiente separado com uma cópia do banco antes de rodar em produção não é
+opcional para um upgrade que pula mais de uma versão minor.
 
 ## Backup & Restore
 
@@ -139,10 +163,23 @@ Fluxo geral (validar passo a passo contra a doc oficial da versão específica):
   - Conexão recusada ao banco → checar ordem de subida (banco pronto antes do TB) e
     healthcheck no compose.
   - Fila com lag crescente → checar throughput de `tb-rule-engine`, possível gargalo em
-    node externo (REST call, email) dentro de uma rule chain.
+    node externo (REST call, email) dentro de uma rule chain. Perda/atraso de mensagem
+    entre gateway↔Kafka é um padrão recorrente relatado por usuários (ex.
+    [thingsboard#9783](https://github.com/thingsboard/thingsboard/issues/9783), nunca
+    confirmado como bug da plataforma) — antes de suspeitar de perda real, monitorar lag
+    de consumer group do Kafka e comportamento de retry/QoS do lado do gateway/device;
+    geralmente a causa é configuração de retry insuficiente no cliente, não o Kafka
+    "comendo" mensagem.
   - Licença inválida (PE) → ver seção Licenciamento.
   - UI carrega mas dashboards não atualizam em tempo real → checar WebSocket
     (`/api/ws`) não bloqueado por proxy/LB intermediário.
+  - `HTTP_BIND_PORT`/`HTTP_BIND_ADDRESS` alterado e o serviço não sobe, log mostra
+    `Port X is already in use` → **quase sempre é conflito de porta real, não bug de
+    config** ([thingsboard#7539](https://github.com/thingsboard/thingsboard/issues/7539)):
+    comum tentar bindar a porta 443 diretamente enquanto um reverse proxy (Traefik/Nginx)
+    já está ocupando essa porta no host. Manter o ThingsBoard na porta interna padrão
+    (8080) e deixar o reverse proxy expor 443/TLS externamente, em vez de mudar o bind
+    interno do TB.
 
 ## Referência
 
