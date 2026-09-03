@@ -58,7 +58,16 @@ function out(s) { process.stdout.write(s + '\n'); }
 function warn(s) { process.stderr.write(C.y + '! ' + s + C.r + '\n'); }
 function ok(s) { process.stderr.write(C.g + 'ok' + C.r + ' ' + s + '\n'); }
 function dim(s) { process.stderr.write(C.d + s + C.r + '\n'); }
-function die(s, code = 1) { process.stderr.write(C.red + 'erro' + C.r + ' ' + s + '\n'); process.exit(code); }
+
+/**
+ * Encerramento limpo. `process.exit()` com socket ou escrita pendente aborta o processo
+ * no Windows com "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" do libuv, o que
+ * transforma um erro tratado numa mensagem de crash. Em vez disso define o exit code,
+ * levanta um sentinela e deixa o loop de eventos drenar sozinho.
+ */
+class ExitError extends Error {}
+function bail(code = 1) { process.exitCode = code; throw new ExitError(); }
+function die(s, code = 1) { process.stderr.write(C.red + 'erro' + C.r + ' ' + s + '\n'); bail(code); }
 function json(v) { out(JSON.stringify(v, null, 2)); }
 
 /* ------------------------------------------------------------------ conf */
@@ -331,7 +340,7 @@ async function cmdApi() {
       rows.push({ m: m.toUpperCase(), p: p, s: op.summary || '' });
     }
   }
-  if (!rows.length) { warn('nenhum path casa /' + pattern + '/i'); process.exit(1); }
+  if (!rows.length) { warn('nenhum path casa /' + pattern + '/i'); bail(1); }
   rows.sort((a, b) => a.p.localeCompare(b.p) || a.m.localeCompare(b.m));
   const w = Math.max.apply(null, rows.map((r) => r.m.length));
   for (const r of rows) {
@@ -391,7 +400,7 @@ async function cmdSpec() {
     warn('path exato "' + path + '" nao existe no spec. Parecidos:');
     const frag = path.replace(/^\//, '').split('/')[0];
     Object.keys(spec.paths).filter((p) => p.indexOf(frag) !== -1).slice(0, 15).forEach((p) => out('  ' + p));
-    process.exit(1);
+    bail(1);
   }
   const methods = flags.method
     ? [String(flags.method).toLowerCase()]
@@ -468,7 +477,7 @@ async function cmdFind() {
   if (!kind) die('uso: tb.mjs find <' + Object.keys(KINDS).join('|') + '> [nome]', 2);
   const items = await listAll(kind, pos[2]);
   if (flags.raw) return json(items);
-  if (!items.length) { warn('nenhum resultado'); process.exit(1); }
+  if (!items.length) { warn('nenhum resultado'); bail(1); }
   for (const it of items) {
     out(((it.id && it.id.id) || '-') + '  ' + (it.name || it.title || '-') + (it.type ? '  ' + C.d + it.type + C.r : ''));
   }
@@ -486,7 +495,7 @@ async function resolveId(kind, ref) {
   if (pool.length > 1) {
     warn(pool.length + ' ' + kind + 's casam "' + ref + '" — seja especifico ou passe o UUID:');
     pool.slice(0, 10).forEach((i) => process.stderr.write('    ' + i.id.id + '  ' + (i.name || i.title) + '\n'));
-    process.exit(1);
+    bail(1);
   }
   return pool[0].id.id;
 }
@@ -683,13 +692,16 @@ const COMMANDS = {
 
 if (!cmd || cmd === 'help' || flags.help === true) {
   cmdHelp();
-  process.exit(cmd ? 0 : 2);
-}
-if (!COMMANDS[cmd]) die('comando desconhecido "' + cmd + '". Use: tb.mjs help', 2);
-
-try {
-  await COMMANDS[cmd]();
-} catch (e) {
-  if (e instanceof HttpError) die(e.message);
-  die(e.stack || String(e));
+  process.exitCode = cmd ? 0 : 2;
+} else {
+  try {
+    if (!COMMANDS[cmd]) die('comando desconhecido "' + cmd + '". Use: tb.mjs help', 2);
+    await COMMANDS[cmd]();
+  } catch (e) {
+    // ExitError já reportou e já definiu o exit code — não imprimir de novo nem stack.
+    if (!(e instanceof ExitError)) {
+      process.stderr.write(C.red + 'erro' + C.r + ' ' + (e instanceof HttpError ? e.message : (e.stack || String(e))) + '\n');
+      process.exitCode = 1;
+    }
+  }
 }
