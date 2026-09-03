@@ -212,8 +212,11 @@ async function getToken() {
 
 async function doLogin() {
   requireUrl();
+  // Falha de auth é HttpError, não die(): `check` precisa reportá-la uma vez e seguir
+  // com o diagnóstico não autenticado (versão/edição costumam vir do OpenAPI público).
+  // Com die() o sentinela vazava para os catch do cmdCheck e saía duplicado e sem texto.
   if (!CONF.user || !CONF.password) {
-    die('TB_USER / TB_PASSWORD nao definidos (ou --user/--password). Nunca commite .tb.env.');
+    throw new HttpError(0, 'TB_USER / TB_PASSWORD nao definidos (ou --user/--password). Nunca commite .tb.env.');
   }
   const r = await raw('POST', '/api/auth/login', {
     body: { username: CONF.user, password: CONF.password },
@@ -221,7 +224,7 @@ async function doLogin() {
   });
   if (!r.ok) {
     const m = (r.body && r.body.message) || ('HTTP ' + r.status);
-    die('login falhou para ' + CONF.user + ': ' + m);
+    throw new HttpError(r.status, 'login falhou para ' + CONF.user + ': ' + m);
   }
   memToken = r.body.token;
   cacheWrite('token', { token: r.body.token, refreshToken: r.body.refreshToken });
@@ -244,8 +247,9 @@ async function getSpec(opts = {}) {
   requireUrl();   // uma vez, antes do loop: senão o erro sai 6x e é diagnosticado errado
   let spec = null;
   let from = null;
+  const authModes = opts.noAuth ? [false] : [false, true];
   for (const p of ['/v3/api-docs', '/v2/api-docs', '/api-docs']) {
-    for (const auth of [false, true]) {
+    for (const auth of authModes) {
       try {
         const r = await raw('GET', p, { auth, timeoutMs: 60000 });
         if (r.ok && r.body && typeof r.body === 'object' && r.body.paths) { spec = r.body; from = p; break; }
@@ -286,16 +290,26 @@ async function cmdCheck() {
   out(C.b + 'alcancavel' + C.r + ' HTTP ' + reach.status + ' em ' + (Date.now() - t0) + 'ms');
 
   let user = null;
+  let authFailed = false;
   try {
     await getToken();
     user = await api('GET', '/api/auth/user');
     ok('autenticado como ' + user.email + ' (' + user.authority + ')');
   } catch (e) {
-    warn('autenticacao falhou: ' + e.message);
+    if (e instanceof ExitError) throw e;
+    authFailed = true;
+    warn(e.message);
+    dim('  seguindo sem autenticação — versão/edição costumam vir do OpenAPI público');
   }
 
+  // Sem credencial válida não adianta o getSpec tentar o modo autenticado: repetiria
+  // o mesmo login falho e imprimiria o erro uma segunda vez.
   let spec = null;
-  try { spec = await getSpec(); } catch (e) { warn(e.message); }
+  try { spec = await getSpec({ noAuth: authFailed }); }
+  catch (e) {
+    if (e instanceof ExitError) throw e;
+    if (e.message) warn(e.message);
+  }
 
   if (spec) {
     const ed = editionOf(spec);
@@ -315,7 +329,14 @@ async function cmdCheck() {
   }
 
   out('');
-  dim('proximo: tb.mjs api <regex> | tb.mjs nodes | tb.mjs export rulechain <nome>');
+  if (authFailed) {
+    // Diagnóstico parcial ainda é útil (versão/edição saíram), mas sem auth o `check`
+    // não passou: script e CI precisam enxergar isso no exit code.
+    dim('sem autenticação: nodes/export/find não vão funcionar até a credencial passar');
+    process.exitCode = 1;
+  } else {
+    dim('proximo: tb.mjs api <regex> | tb.mjs nodes | tb.mjs export rulechain <nome>');
+  }
 }
 
 async function cmdVersion() {
