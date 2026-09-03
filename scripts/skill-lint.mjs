@@ -64,7 +64,7 @@ function parseFrontmatter(text) {
 }
 
 function loadSkills() {
-  if (!existsSync(SKILLS_DIR)) { out(C.red + 'erro' + C.r + ' ' + SKILLS_DIR + ' não existe'); process.exit(2); }
+  if (!existsSync(SKILLS_DIR)) { out(C.red + 'erro' + C.r + ' ' + SKILLS_DIR + ' não existe'); process.exitCode = 2; throw new Error("skills dir ausente"); }
   const skills = [];
   for (const dir of readdirSync(SKILLS_DIR)) {
     const p = join(SKILLS_DIR, dir);
@@ -183,7 +183,7 @@ function score(qTokens, descTokens, idf) {
 }
 
 function cmdTriggers(skills) {
-  if (!existsSync(TRIGGERS)) { out(C.red + 'erro' + C.r + ' ' + TRIGGERS + ' não existe'); process.exit(2); }
+  if (!existsSync(TRIGGERS)) { out(C.red + 'erro' + C.r + ' ' + TRIGGERS + ' não existe'); process.exitCode = 2; throw new Error("triggers ausente"); }
 
   const cases = readFileSync(TRIGGERS, 'utf8').split(/\r?\n/)
     .map((l) => l.trim()).filter((l) => l.startsWith('{'))
@@ -261,10 +261,10 @@ if (mode === 'validate' || mode === 'all') cmdValidate(skills);
 if (mode === 'triggers' || mode === 'all') cmdTriggers(skills);
 if (!['validate', 'triggers', 'all'].includes(mode)) {
   out('uso: node scripts/skill-lint.mjs [validate|triggers] [--verbose]');
-  process.exit(2);
+  process.exitCode = 2;
 }
 
 out('');
 out(errors ? C.red + errors + ' falha(s)' + C.r + (warns ? ', ' + warns + ' aviso(s)' : '')
            : C.g + 'sem falhas' + C.r + (warns ? ', ' + warns + ' aviso(s)' : ''));
-process.exit(errors ? 1 : 0);
+process.exitCode = errors ? 1 : 0;

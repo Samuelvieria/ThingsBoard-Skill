@@ -241,6 +241,7 @@ async function getSpec(opts = {}) {
     const c = cacheRead('apidocs', 24 * 3600 * 1000);
     if (c && c.spec) return c.spec;
   }
+  requireUrl();   // uma vez, antes do loop: senão o erro sai 6x e é diagnosticado errado
   let spec = null;
   let from = null;
   for (const p of ['/v3/api-docs', '/v2/api-docs', '/api-docs']) {
@@ -248,7 +249,11 @@ async function getSpec(opts = {}) {
       try {
         const r = await raw('GET', p, { auth, timeoutMs: 60000 });
         if (r.ok && r.body && typeof r.body === 'object' && r.body.paths) { spec = r.body; from = p; break; }
-      } catch { /* tenta o proximo */ }
+      } catch (e) {
+        // ExitError é sinal de controle, não falha de tentativa — engoli-lo faz o loop
+        // continuar e reportar "OpenAPI nao encontrado" no lugar da causa real.
+        if (e instanceof ExitError) throw e;
+      }
     }
     if (spec) break;
   }
@@ -303,7 +308,10 @@ async function cmdCheck() {
     try {
       const si = await api('GET', '/api/system/info');
       if (si && si.systemVersion) out(C.b + 'build' + C.r + '      ' + si.systemVersion);
-    } catch { dim('/api/system/info indisponivel (normal para tenant admin — exige sysadmin)'); }
+    } catch (e) {
+      if (e instanceof ExitError) throw e;
+      dim('/api/system/info indisponivel (normal para tenant admin — exige sysadmin)');
+    }
   }
 
   out('');
@@ -546,7 +554,7 @@ async function cmdExport() {
 async function cmdNodes() {
   if (flags.used) return await nodesFromChains();
   let spec = null;
-  try { spec = await getSpec(); } catch { /* segue sem spec */ }
+  try { spec = await getSpec(); } catch (e) { if (e instanceof ExitError) throw e; /* segue sem spec */ }
   const candidates = [];
   if (spec) {
     for (const p of Object.keys(spec.paths)) {
@@ -566,7 +574,9 @@ async function cmdNodes() {
           dim('descritores via GET ' + base + qs);
           return printDescriptors(arr);
         }
-      } catch { /* proximo candidato */ }
+      } catch (e) {
+        if (e instanceof ExitError) throw e;   // sinal de controle, não candidato ruim
+      }
     }
   }
   warn('endpoint de descritores de componente nao encontrado nesta versao.');
@@ -603,7 +613,8 @@ async function nodesFromChains() {
   const seen = new Map();
   for (const ch of chains) {
     let md;
-    try { md = await api('GET', '/api/ruleChain/' + ch.id.id + '/metadata'); } catch { continue; }
+    try { md = await api('GET', '/api/ruleChain/' + ch.id.id + '/metadata'); }
+    catch (e) { if (e instanceof ExitError) throw e; continue; }
     const nodes = md.nodes || [];
     for (const n of nodes) {
       let e = seen.get(n.type);

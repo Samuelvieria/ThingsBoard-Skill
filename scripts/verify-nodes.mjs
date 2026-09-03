@@ -242,7 +242,22 @@ async function main() {
     }
   }
 
-  const refInfo = await gh('/repos/' + REPO + '/commits/' + encodeURIComponent(String(ref)));
+  let refInfo;
+  try {
+    refInfo = await gh('/repos/' + REPO + '/commits/' + encodeURIComponent(String(ref)));
+  } catch (e) {
+    // O ThingsBoard versiona com 4 componentes (v4.3.1.4), então "v4.3.0" quase sempre
+    // não existe como tag. Sem isto o usuário só vê um HTTP 422 cru.
+    if (!/HTTP (404|422)/.test(e.message)) throw e;
+    log(C.red + 'erro' + C.r + ' ref "' + ref + '" não existe em ' + REPO);
+    try {
+      const tags = await gh('/repos/' + REPO + '/tags?per_page=12');
+      log('       tags recentes: ' + tags.map((t) => t.name).join(', '));
+    } catch { /* sem rede pra listar; a mensagem principal já basta */ }
+    log('       omita --ref para usar o último release automaticamente.');
+    process.exitCode = 2;
+    return;
+  }
   sha = refInfo.sha;
   log(C.b + 'ref' + C.r + '  ' + ref + '  ' + C.d + '-> ' + sha + C.r);
 
@@ -256,7 +271,7 @@ async function main() {
   if (!files.length) {
     log(C.red + 'erro' + C.r + ' nenhum .java sob ' + SRC_PREFIX + ' em ' + ref);
     log('       o caminho do módulo pode ter mudado nessa versão — ajuste SRC_PREFIX.');
-    process.exit(1);
+    process.exitCode = 1; return;
   }
   log(C.d + files.length + ' arquivos java, baixando (concorrência 8)...' + C.r);
 
@@ -273,7 +288,7 @@ async function main() {
 
   if (!existsSync(CATALOG)) {
     log(C.red + 'erro' + C.r + ' catálogo não encontrado em ' + CATALOG);
-    process.exit(1);
+    process.exitCode = 1; return;
   }
   const md = readFileSync(CATALOG, 'utf8');
   const catalog = parseCatalog(md);
@@ -362,10 +377,10 @@ async function main() {
 
   // relationDrift é o único que quebra o build: connections[].type errado falha em silêncio
   // em produção. missing/stale são informativos (PE closed-source aparece como obsoleto).
-  process.exit(relationDrift.length ? 1 : 0);
+  process.exitCode = relationDrift.length ? 1 : 0;
 }
 
 main().catch((e) => {
   process.stderr.write(C.red + 'erro' + C.r + ' ' + (e.stack || e.message) + '\n');
-  process.exit(2);
+  process.exitCode = 2;
 });
