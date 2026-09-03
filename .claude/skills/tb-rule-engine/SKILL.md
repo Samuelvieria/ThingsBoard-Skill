@@ -1,28 +1,39 @@
 ---
 name: tb-rule-engine
-description: Criação, edição e depuração de Rule Chains do ThingsBoard (filtros, enriquecimento, transformação em TBEL/JS, ações, roteamento de mensagens). Use ao construir, revisar ou depurar a lógica de processamento de mensagens (rule nodes) em JSON, ou ao explicar/planejar o fluxo de uma rule chain.
+description: 'Rule Chains do ThingsBoard — rule nodes (filter, enrichment, transformation, action, external, flow), scripts TBEL e JavaScript, connections[].type, alarme automático, Calculated Fields. Use ao construir, revisar ou depurar a lógica de processamento de mensagens, gerar JSON de rule chain, ou explicar o fluxo de uma chain. Sintomas típicos - erro "Can''t compile script: null", a mensagem não chega no próximo node, o alarme não dispara nem fecha/limpa, script transformation ou script filter sempre retorna Failure, qual o type da classe Java do node, usar Created ou Success na conexão do create alarm, parseDouble de metadata em TBEL, aba Events do node sem eventos no debug, encadear uma rule chain dentro de outra, diferença entre calculated field simple e script.'
 ---
 
 # ThingsBoard Rule Engine
 
-## Antes de começar
+## Antes de começar — verifique, não adivinhe
 
-Os `type` de cada rule node (ex: `org.thingsboard.rule.engine.filter.TbJsFilterNode`) são
-nomes de classe Java. Para nodes **CE**, [references/node-types.md](references/node-types.md)
-agora traz `type`, nome exibido e `connections[].type` válidos **verificados direto no
-código-fonte oficial** (`github.com/thingsboard/thingsboard`), não mais aproximação —
-pode ser usado como fonte confiável para gerar JSON de rule chain via API. Para nodes
-**exclusivos de PE/Cloud** (closed-source, não estão nesse repo), a confiança é menor:
+Os `type` de rule node (`org.thingsboard.rule.engine.filter.TbJsFilterNode`) são nomes de
+classe Java, e `connections[].type` errado **falha em silêncio**: a conexão simplesmente
+nunca dispara, sem erro no log. É a classe de erro mais cara desta skill.
 
-1. Se for node PE (marcado como tal no catálogo) ou a versão instalada divergir da
-   branch `master` do GitHub, peça para o usuário **exportar** uma rule chain existente
-   da instância (Rule Chains → abrir → menu → Export) e use esse JSON como template
-   real em vez de confiar de memória.
-2. Sempre confirmar `connections[].type` contra a tabela/export antes de gerar JSON —
-   a maioria dos nodes usa `Success`/`Failure`, mas há exceções reais (ex: `create alarm`
-   usa `Created`/`Updated`/`False`) que quebram silenciosamente se erradas.
-3. Prefira editar a estrutura de um chain existente (adicionar/remover nodes e
-   conexões) a recriar o chain do zero.
+Duas fontes, nesta ordem de confiança:
+
+**1. A instância alvo** — definitiva, cobre nodes PE closed-source:
+```bash
+node scripts/tb.mjs nodes                    # descritores reais: classe + connections válidos
+node scripts/tb.mjs nodes --used             # tipos em uso nas chains + labels observados
+node scripts/tb.mjs export rulechain "Root Rule Chain" --out chain.json
+```
+
+**2. [references/node-types.md](references/node-types.md)** — catálogo CE extraído da
+anotação `@RuleNode` do código-fonte oficial, com **proveniência fixada** (tag + commit SHA
+no cabeçalho) e reverificado por `node scripts/verify-nodes.mjs`. Confiável para CE na
+versão indicada; não cobre nodes PE/Cloud.
+
+Regras práticas:
+
+1. Para node PE (marcado no catálogo) ou versão instalada diferente da fixada no
+   cabeçalho, **exporte uma chain real** e use como template — nunca gere de memória.
+2. Confirme `connections[].type` de cada node antes de emitir JSON. A maioria é
+   `Success`/`Failure`, mas as exceções são reais: `create alarm` usa
+   `Created`/`Updated`/`False`, `clear alarm` usa `Cleared`/`False`, `device state`
+   acrescenta `Rate limited`, geofencing usa `Entered`/`Left`/`Inside`/`Outside`.
+3. Prefira editar um chain existente (adicionar/remover nodes e conexões) a recriar do zero.
 
 ## Estrutura do JSON de uma Rule Chain
 

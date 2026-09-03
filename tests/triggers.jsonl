@@ -1,0 +1,53 @@
+{"_comment": "Corpus de frases-gatilho. Uma linha JSON por caso: como o usuario REALMENTE digita (sintoma, erro colado do log, girias), nao o vocabulario do autor da skill. `skill` = qual deve disparar. `null` = nenhuma deve disparar (guarda contra description larga demais). Rode: node scripts/skill-lint.mjs triggers"}
+
+{"q": "erro 401 chamando /api/plugins/telemetry no thingsboard", "skill": "tb-rest-api"}
+{"q": "como pego o access token de um device via api", "skill": "tb-rest-api"}
+{"q": "meu script python de integracao ta dando 403 no TB", "skill": "tb-rest-api"}
+{"q": "provisionar 500 devices de um csv no thingsboard", "skill": "tb-rest-api"}
+{"q": "postar telemetria por curl pra um device", "skill": "tb-rest-api"}
+{"q": "JWT expira muito rapido no thingsboard, como renovo", "skill": "tb-rest-api"}
+{"q": "qual endpoint lista os alarmes ativos de um device", "skill": "tb-rest-api"}
+{"q": "timestamp da telemetria chegou errado, ta em segundos ou ms?", "skill": "tb-rest-api"}
+{"q": "criar relacao Contains entre asset e device pela api", "skill": "tb-rest-api"}
+{"q": "how do I authenticate against the ThingsBoard REST API", "skill": "tb-rest-api"}
+
+{"q": "Can't compile script: null no meu rule node", "skill": "tb-rule-engine"}
+{"q": "a mensagem nao chega no proximo node da rule chain", "skill": "tb-rule-engine"}
+{"q": "meu alarme nao dispara quando a temperatura passa de 30", "skill": "tb-rule-engine"}
+{"q": "qual o type da classe do node save timeseries", "skill": "tb-rule-engine"}
+{"q": "connections type Success ou Created no create alarm?", "skill": "tb-rule-engine"}
+{"q": "como faco parseDouble de metadata em TBEL", "skill": "tb-rule-engine"}
+{"q": "criar rule chain por json via api", "skill": "tb-rule-engine"}
+{"q": "diferenca entre calculated field simple e script", "skill": "tb-rule-engine"}
+{"q": "script transformation retornando Failure sempre", "skill": "tb-rule-engine"}
+{"q": "como encadear uma rule chain dentro de outra", "skill": "tb-rule-engine"}
+{"q": "TBEL nao deixa usar new ArrayList", "skill": "tb-rule-engine"}
+{"q": "debug do rule node nao mostra nada na aba events", "skill": "tb-rule-engine"}
+
+{"q": "meu widget nao atualiza com telemetria nova", "skill": "tb-widgets-dashboards"}
+{"q": "como mando RPC pro device de um botao no dashboard", "skill": "tb-widgets-dashboards"}
+{"q": "widget custom em html css js no thingsboard", "skill": "tb-widgets-dashboards"}
+{"q": "entity alias nao resolve o device certo", "skill": "tb-widgets-dashboards"}
+{"q": "dark mode do meu widget ficou ilegivel", "skill": "tb-widgets-dashboards"}
+{"q": "usar echarts dentro de um widget do TB", "skill": "tb-widgets-dashboards"}
+{"q": "ctx.data ta vazio no controllerScript", "skill": "tb-widgets-dashboards"}
+{"q": "time window do dashboard nao aplica no meu widget", "skill": "tb-widgets-dashboards"}
+{"q": "como fazer um widget responsivo no grid do dashboard", "skill": "tb-widgets-dashboards"}
+{"q": "SCADA symbol widget como configuro", "skill": "tb-widgets-dashboards"}
+
+{"q": "docker compose do thingsboard nao sobe", "skill": "tb-deploy-admin"}
+{"q": "Port 443 is already in use no log do tb", "skill": "tb-deploy-admin"}
+{"q": "upgrade do thingsboard 3.6 pra 4.0, qual o caminho", "skill": "tb-deploy-admin"}
+{"q": "licenca PE invalida, o container reinicia em loop", "skill": "tb-deploy-admin"}
+{"q": "backup do postgres do thingsboard", "skill": "tb-deploy-admin"}
+{"q": "kafka com lag crescente na fila do rule engine", "skill": "tb-deploy-admin"}
+{"q": "docker pull da imagem PE da unauthorized", "skill": "tb-deploy-admin"}
+{"q": "vale a pena cassandra ou timescale pra telemetria", "skill": "tb-deploy-admin"}
+{"q": "dashboard nao atualiza em tempo real, websocket bloqueado no nginx", "skill": "tb-deploy-admin"}
+{"q": "quero rodar thingsboard em microsservicos com HA", "skill": "tb-deploy-admin"}
+{"q": "connection refused no banco quando o tb sobe", "skill": "tb-deploy-admin"}
+
+{"q": "como faco deploy de um app react na vercel", "skill": null}
+{"q": "escrever um teste unitario em pytest", "skill": null}
+{"q": "qual a diferenca entre git rebase e merge", "skill": null}
+{"q": "configurar eslint nesse projeto", "skill": null}

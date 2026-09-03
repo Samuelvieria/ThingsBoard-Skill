@@ -1,24 +1,26 @@
 # Catálogo de rule nodes — verificado no código-fonte oficial (CE)
 
-> Fonte: `github.com/thingsboard/thingsboard`, módulo
-> `rule-engine/rule-engine-components/src/main/java/org/thingsboard/rule/engine/`,
-> branch `master`, capturado em 2026-08-27 — lendo a anotação `@RuleNode` de cada classe
-> (`type`, `name`, `relationTypes`, `docUrl`). **Maior confiança que qualquer versão
-> anterior deste arquivo**: `type` de classe, nome exibido e labels de conexão exatos,
-> não aproximação.
+<!-- PROVENANCE:BEGIN (gerado por scripts/verify-nodes.mjs — não editar à mão) -->
+> **Proveniência fixada.** Fonte: [`thingsboard/thingsboard`](https://github.com/thingsboard/thingsboard/tree/a488a4c138971c0264bf7fdc879871f68eead1e4/rule-engine/rule-engine-components/src/main/java/org/thingsboard/rule/engine/),
+> ref **`v4.3.1.4`**, commit **`a488a4c13897`**, verificado em **2026-09-03**.
+> Extraído da anotação `@RuleNode` de 77 classes (`type`, `name`, `relationTypes`).
 >
-> **Cobre só CE** (código público). Nodes exclusivos de PE/Cloud (ex. Add to Group,
-> Duplicate to Group/Related, Generate Report, Twilio) não estão neste repo por serem
-> closed-source — para esses, a seção "Confirmado em instância PE real" no fim deste
-> arquivo continua sendo a fonte (obtida inspecionando rule chains reais via API, não o
-> código-fonte).
->
-> A categoria de cada node na paleta da UI vem do campo `type` da anotação
-> (`ComponentType`), que **nem sempre bate com o nome do pacote Java** — ex.
-> `TbMsgTimeseriesNode`/`TbMsgAttributesNode` moram no pacote `telemetry` mas são
-> `ComponentType.ACTION`; `TbMsgToEmailNode` mora em `mail` mas é `TRANSFORMATION`
-> enquanto `TbSendEmailNode` no mesmo pacote é `EXTERNAL`. As tabelas abaixo agrupam
-> pela categoria real da anotação, não pelo pacote.
+> Reverificar contra um release mais novo: `node scripts/verify-nodes.mjs --ref vX.Y.Z`.
+> CI mensal em `.github/workflows/verify-catalog.yml` abre issue quando o upstream diverge.
+<!-- PROVENANCE:END -->
+
+**Cobre só CE** (código público). Nodes exclusivos de PE/Cloud (Add to Group, Duplicate to
+Group/Related, Generate Report, Twilio…) são closed-source e não aparecem neste repo — para
+esses, a seção "Confirmado em instância PE real" no fim do arquivo é a fonte, e o caminho
+definitivo é `node scripts/tb.mjs nodes` contra a própria instância, que lista os
+descritores reais incluindo os de PE.
+
+A categoria de cada node na paleta da UI vem do campo `type` da anotação (`ComponentType`),
+que **nem sempre bate com o nome do pacote Java** — ex. `TbMsgTimeseriesNode` /
+`TbMsgAttributesNode` moram no pacote `telemetry` mas são `ComponentType.ACTION`;
+`TbMsgToEmailNode` mora em `mail` mas é `TRANSFORMATION`, enquanto `TbSendEmailNode` no
+mesmo pacote é `EXTERNAL`. As tabelas abaixo agrupam pela categoria real da anotação, não
+pelo pacote.
 
 ## Convenção de `relationTypes` (labels de conexão)
 
@@ -54,6 +56,7 @@ exatamente esses labels (nunca `Success`/`Failure` genérico) — usar o label e
 | originator attributes | `org.thingsboard.rule.engine.metadata.TbGetAttributesNode` |
 | originator fields | `org.thingsboard.rule.engine.metadata.TbGetOriginatorFieldsNode` |
 | originator telemetry | `org.thingsboard.rule.engine.metadata.TbGetTelemetryNode` |
+| calculate delta | `org.thingsboard.rule.engine.metadata.CalculateDeltaNode` |
 | customer attributes | `org.thingsboard.rule.engine.metadata.TbGetCustomerAttributeNode` |
 | customer details | `org.thingsboard.rule.engine.metadata.TbGetCustomerDetailsNode` |
 | tenant attributes | `org.thingsboard.rule.engine.metadata.TbGetTenantAttributeNode` |
@@ -62,7 +65,8 @@ exatamente esses labels (nunca `Success`/`Failure` genérico) — usar o label e
 | related entity data | `org.thingsboard.rule.engine.metadata.TbGetRelatedAttributeNode` |
 | fetch device credentials | `org.thingsboard.rule.engine.metadata.TbFetchDeviceCredentialsNode` |
 
-(Todos `Success`/`Failure` — nenhum declara `relationTypes` custom.)
+(Todos `Success`/`Failure`, **exceto `calculate delta`**, que declara também `Other`
+— usado quando não há leitura anterior da chave para calcular o delta.)
 
 ## Transformation
 
@@ -107,7 +111,8 @@ exatamente esses labels (nunca `Success`/`Failure` genérico) — usar o label e
 | rest call reply | `org.thingsboard.rule.engine.rest.TbSendRestApiCallReplyNode` | `Success`, `Failure` |
 | push to edge | `org.thingsboard.rule.engine.edge.TbMsgPushToEdgeNode` | `Success`, `Failure` |
 | push to cloud (**Edge only**) | `org.thingsboard.rule.engine.edge.TbMsgPushToCloudNode` | `Success`, `Failure` |
-| synchronization start/end | `org.thingsboard.rule.engine.transaction.TbSynchronizationBeginNode` / `...TbSynchronizationEndNode` | `Success`, `Failure` |
+| synchronization start | `org.thingsboard.rule.engine.transaction.TbSynchronizationBeginNode` | `Success`, `Failure` |
+| synchronization end (**deprecado** — usar checkpoint) | `org.thingsboard.rule.engine.transaction.TbSynchronizationEndNode` | `Success`, `Failure` |
 
 ## External
 
@@ -126,6 +131,7 @@ exatamente esses labels (nunca `Success`/`Failure` genérico) — usar o label e
 | aws sns | `org.thingsboard.rule.engine.aws.sns.TbSnsNode` |
 | aws sqs | `org.thingsboard.rule.engine.aws.sqs.TbSqsNode` |
 | gcp pubsub | `org.thingsboard.rule.engine.gcp.pubsub.TbPubSubNode` |
+| azure iot hub | `org.thingsboard.rule.engine.mqtt.azure.TbAzureIotHubNode` |
 
 (Todos `Success`/`Failure`.) Nota de segurança encontrada no código: o node **rest api
 call** usa um `SsrfSafeAddressResolverGroup` — o ThingsBoard valida/restringe o endereço

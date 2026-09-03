@@ -1,0 +1,16 @@
+# Credenciais da instância ThingsBoard — NUNCA commitar.
+# scripts/tb.mjs lê daqui; o JWT vai pro tmp do SO, mas a senha fica neste arquivo.
+.tb.env
+.env.tb
+
+# Saída das ferramentas
+report.json
+summary.md
+*.local.json
+
+# Exports de instância (podem conter dados/IDs de produção)
+rulechain-*.json
+dashboard-*.json
+deviceprofile-*.json
+
+node_modules/

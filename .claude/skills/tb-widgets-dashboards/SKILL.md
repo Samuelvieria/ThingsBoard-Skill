@@ -1,17 +1,24 @@
 ---
 name: tb-widgets-dashboards
-description: Desenvolvimento de widgets customizados (HTML/CSS/JS) e configuração de dashboards do ThingsBoard — bundles de widgets, datasources, entity aliases, RPC para devices a partir de widgets. Use ao criar, editar ou depurar widgets ou dashboards do ThingsBoard.
+description: Widgets customizados (HTML/CSS/JS, controllerScript, ctx/self.ctx) e dashboards do ThingsBoard — bundles, datasources, entity alias, actions, time window, RPC de botão para device, SCADA symbol, dark mode, layout no grid. Use ao criar, editar, estilizar ou depurar um widget ou um dashboard. Sintomas típicos - o widget não atualiza com telemetria nova, ctx.data vazio ou undefined no controllerScript, entity alias não resolve o device certo, o gráfico não aparece nem renderiza, time window do dashboard não aplica no widget, widget ilegível no dark mode, como mandar RPC de um botão/slider, usar ECharts ou biblioteca de gráfico dentro do widget, deixar o widget responsivo no grid, latest values vs timeseries, editar defaultConfig/settingsSchema.
 ---
 
 # ThingsBoard Widgets & Dashboards
 
-## Antes de começar
+## Antes de começar — parta de um export real
 
-O JSON de widgets/dashboards é grande e tem muitos campos opcionais que variam por
-versão e por tipo de widget. Sempre que possível:
+O JSON de widget/dashboard é grande, com muitos campos opcionais que variam por versão e
+por tipo de widget. Montar do zero de memória é a forma mais rápida de produzir um JSON
+que o ThingsBoard aceita e não renderiza.
 
-1. Peça para exportar um widget/dashboard existente similar (menu → Export) e use como
-   template base em vez de montar o JSON inteiro do zero.
+```bash
+node scripts/tb.mjs find dashboard                          # lista os dashboards + UUIDs
+node scripts/tb.mjs export dashboard "Nome do Dashboard" --out base.json
+node scripts/tb.mjs api "widget"                            # endpoints de widget desta versão
+```
+
+1. Comece de um export de widget/dashboard **similar** (comando acima, ou menu → Export na
+   UI) e edite — não monte o JSON inteiro do zero.
 2. Para customizações pequenas (texto, cor, threshold), prefira editar a
    `defaultConfig`/`settings` do widget existente a reescrever o `controllerScript`.
 3. Teste incrementalmente: o editor de widgets do ThingsBoard tem preview ao vivo — sugira

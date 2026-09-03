@@ -1,22 +1,34 @@
 ---
 name: tb-rest-api
-description: Integração com a REST API do ThingsBoard (CE/PE) — autenticação JWT, provisionamento de devices, telemetria, atributos, alarmes e relações de entidades. Use ao escrever, revisar ou depurar scripts/clients (Python, Node.js, curl) que consomem a API do ThingsBoard, ou ao integrar sistemas externos com telemetria/comandos de devices.
+description: REST API do ThingsBoard (CE/PE) — autenticação JWT, provisionamento de devices em massa, envio/consulta de telemetria e atributos, alarmes, relações, RPC. Use ao escrever, revisar ou depurar script/client (Python, Node.js, curl, Postman) que consome a API, ou ao integrar sistema externo com o ThingsBoard. Sintomas típicos - "erro 401 na API", "403 forbidden", "Authentication failed", "Invalid access token", token JWT expirou, "não sei qual endpoint usar", como pegar o access token do device, timestamp da telemetria em segundos vs milissegundos, provisionar devices de um CSV/planilha, paginação pageSize/page, header X-Authorization Bearer, POST /api/v1/token/telemetry, consultar swagger da instância.
 ---
 
 # ThingsBoard REST API
 
-## Antes de começar
+## Antes de começar — verifique, não adivinhe
 
-Endpoints e schemas podem variar entre versões (CE vs PE, releases diferentes). Antes de
-gerar código de integração para uma instância real:
+Endpoints e schemas variam entre versões e entre CE/PE. **Não gere código de integração a
+partir das tabelas deste arquivo sem confirmar contra a instância alvo.** Existe uma
+ferramenta para isso — use antes de escrever a primeira linha:
 
-1. Pergunte (ou verifique) a URL base da instância (`https://<host>`).
-2. Sempre que possível, confirme o contrato exato na documentação Swagger/OpenAPI da
-   própria instância, em `https://<host>/swagger-ui/`. É a fonte da verdade — mais
-   confiável do que qualquer tabela memorizada, especialmente em PE (que tem endpoints
-   extras: white-labeling, Edge, Mobile Application Center, Scheduler, etc.).
-3. Se não houver acesso à instância, use as convenções abaixo como ponto de partida, mas
-   avise o usuário para validar contra o Swagger antes de rodar em produção.
+```bash
+export TB_URL=https://host TB_USER=... TB_PASSWORD=...   # ou crie .tb.env (nunca commitar)
+
+node scripts/tb.mjs check                     # alcançável? autenticou? CE ou PE? qual versão?
+node scripts/tb.mjs api "telemetry|attribute" # quais paths existem MESMO nesta instância
+node scripts/tb.mjs spec "/api/plugins/telemetry/{entityType}/{entityId}/timeseries/{scope}" --method post
+node scripts/tb.mjs get /api/auth/user        # GET autenticado, JWT gerenciado sozinho
+```
+
+`api` e `spec` leem o OpenAPI da própria instância (`/v3/api-docs`, cache de 24h) — é a
+fonte da verdade, e mais barato que paginar a doc. `tb.mjs help` lista tudo.
+
+Se **não** houver acesso à instância: use as convenções abaixo como ponto de partida e
+**diga explicitamente ao usuário** que o contrato não foi verificado, apontando
+`node scripts/tb.mjs api <termo>` como o passo de validação antes de rodar em produção.
+
+PE expõe endpoints que CE não tem (white-labeling, Edge, Scheduler, Integrations) — o
+`check` reporta a edição detectada, não presuma.
 
 ## Conceitos gerais
 
@@ -70,9 +82,14 @@ GET /api/plugins/telemetry/{entityType}/{entityId}/values/timeseries?keys=temper
 Enviar telemetria em nome de uma entidade via API de usuário (uso administrativo/backfill,
 não é o caminho normal de um device):
 ```
-POST /api/plugins/telemetry/{entityType}/{entityId}/timeseries/ANY?scope=ANY
+POST /api/plugins/telemetry/{entityType}/{entityId}/timeseries/{scope}
 { "ts": 1700000000000, "values": { "temperature": 21.5 } }
 ```
+
+`{scope}` é **path param**, não query string — o enum no OpenAPI de 4.3 tem um único valor
+aceito, `ANY`, então na prática o path é `.../timeseries/ANY` (verificado com
+`tb.mjs spec ... --method post` contra TB 4.3). Existe a variante
+`.../timeseries/{scope}/{ttl}` quando se quer TTL explícito.
 
 Caminho normal de um **device real** publicando telemetria (usa o access token do device,
 não JWT):
