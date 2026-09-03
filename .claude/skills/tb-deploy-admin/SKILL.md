@@ -1,16 +1,24 @@
 ---
 name: tb-deploy-admin
-description: Instalação, configuração e administração do ThingsBoard PE/CE self-hosted — Docker Compose (monolito e microsserviços), banco de dados (PostgreSQL/Cassandra/TimescaleDB), fila (Kafka), licenciamento PE, upgrade de versão, backup/restore e troubleshooting. Use ao planejar instalação, upgrade, HA, backup ou depurar problemas de infraestrutura do ThingsBoard.
+description: Infraestrutura do ThingsBoard PE/CE self-hosted — Docker Compose (monolito e microsserviços), PostgreSQL, Cassandra, TimescaleDB, Kafka, licença PE, upgrade de versão, backup e restore, HA, reverse proxy Nginx/Traefik. Use ao instalar, subir, atualizar, escalar ou consertar a plataforma em si (não a lógica dentro dela). Sintomas típicos - o container não sobe ou reinicia em loop, "Port 443 is already in use", "connection refused" no banco, docker pull da imagem PE dá unauthorized, licença PE inválida ou expirada, lag crescente na fila do Kafka, dashboard não atualiza em tempo real porque o websocket está bloqueado pelo proxy, escolher banco para telemetria, logs em /var/log/thingsboard, migrar de versão sem pular major.
 ---
 
 # ThingsBoard Deploy & Administração (self-hosted / PE)
 
-## Antes de começar
+## Antes de começar — fixe a versão e a edição primeiro
 
-Procedimentos de upgrade e nomes exatos de imagens/scripts mudam por versão. Antes de
-propor passos concretos:
+Praticamente toda resposta desta skill depende de duas variáveis: **qual versão** e
+**CE ou PE**. Determine-as antes de propor qualquer passo concreto.
 
-1. Confirme a versão atual instalada (`Help → About` na UI, ou tag da imagem Docker em uso).
+```bash
+node scripts/tb.mjs check     # edição CE/PE, versão da API, build, e se a instância responde
+```
+
+Se a instância não estiver de pé (o caso comum aqui — é justamente o que se quer
+consertar), caia para: tag da imagem em `docker compose config`, `docker image ls`,
+`Help → About` na UI, ou `docker logs <container> | head -50`.
+
+1. Confirme a versão atual instalada (comando acima, ou tag da imagem Docker em uso).
 2. Se for uma operação de upgrade, confirme a versão de destino e avise o usuário para
    checar as **release/upgrade notes oficiais** daquele intervalo de versões — em geral
    ThingsBoard recomenda upgrade sequencial (não pular versões major) e o script de

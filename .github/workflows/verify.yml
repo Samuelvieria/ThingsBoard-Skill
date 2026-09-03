@@ -1,0 +1,118 @@
+name: verify
+
+# Duas garantias, uma por job:
+#  - skill-lint: as descriptions ainda casam com o que usuários digitam, links não quebraram
+#  - node-catalog: o catálogo de rule nodes ainda bate com o código-fonte upstream
+#
+# O catálogo é o ativo de maior valor do pack e o que apodrece mais rápido: o ThingsBoard
+# solta release com frequência. Sem esta verificação, o arquivo continua afirmando
+# "verificado no código-fonte oficial" muito depois de deixar de ser verdade.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 6 1 * *'   # dia 1 de cada mês, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  skill-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: valida frontmatter, links e casamento de triggers
+        run: node scripts/skill-lint.mjs
+
+  node-catalog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: diffa o catálogo contra o último release do ThingsBoard
+        id: verify
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # evita rate limit da API
+        run: |
+          set +e
+          node scripts/verify-nodes.mjs --json > report.json
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          node -e '
+            const r = require("./report.json");
+            const line = (s) => process.stdout.write(s + "\n");
+            line("## Catálogo de rule nodes vs `" + r.ref + "`");
+            line("");
+            line("commit `" + r.sha.slice(0,12) + "` · " + r.upstreamClasses + " classes upstream · " + r.catalogEntries + " documentadas");
+            line("");
+            if (r.clean) { line("Catálogo em dia."); }
+            else {
+              if (r.relationDrift.length) {
+                line("### Divergência de `connections[].type` (" + r.relationDrift.length + ")");
+                line("Falha em silêncio em produção — prioridade alta.");
+                line("");
+                for (const d of r.relationDrift) line("- `" + d.fqn + "` — upstream " + JSON.stringify(d.upstream) + ", catálogo " + JSON.stringify(d.catalogo));
+                line("");
+              }
+              if (r.missing.length) {
+                line("### Nodes novos, ausentes do catálogo (" + r.missing.length + ")");
+                for (const m of r.missing) line("- `" + m.fqn + "` (" + m.componentType + ") — " + m.displayName);
+                line("");
+              }
+              if (r.stale.length) {
+                line("### No catálogo, ausentes do source CE (" + r.stale.length + ")");
+                for (const s of r.stale) line("- `" + s.fqn + "` — " + s.displayName);
+                line("");
+              }
+              line("Reproduzir: `node scripts/verify-nodes.mjs`");
+              line("Refixar proveniência após corrigir: `node scripts/verify-nodes.mjs --update-header`");
+            }
+          ' > summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          node -e 'process.exit(require("./report.json").clean ? 0 : 1)' && echo "clean=true" >> "$GITHUB_OUTPUT" || echo "clean=false" >> "$GITHUB_OUTPUT"
+
+      - name: abre issue quando o upstream divergiu
+        if: steps.verify.outputs.clean == 'false' && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('summary.md', 'utf8');
+            const report = JSON.parse(fs.readFileSync('report.json', 'utf8'));
+            const title = 'Catálogo de rule nodes divergiu de ' + report.ref;
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'catalog-drift',
+            });
+            const dup = existing.data.find((i) => i.title === title);
+            if (dup) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: dup.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['catalog-drift'],
+              });
+            }
+
+      # `missing`/`stale` são informativos; só divergência de connections[].type
+      # quebra o build, porque é a que produz JSON silenciosamente errado.
+      - name: falha só em divergência de connections
+        if: steps.verify.outputs.exit != '0'
+        run: |
+          echo "verify-nodes.mjs reportou divergência de connections[].type"
+          exit 1
