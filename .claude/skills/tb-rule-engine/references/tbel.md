@@ -186,9 +186,9 @@ var unmodifiable = original.toUnmodifiable();
 ## Sets
 
 ```tbel
-var set1 = toSet(["B", "A", "C", "A"]);
-var set2 = createSet();
-var set3 = createSet(["A", "B", "C"]);
+var set1 = toSet(["B", "A", "C", "A"]);   // de uma lista, deduplicando
+var set2 = newSet();                      // vazio
+// Não existe createSet(): as duas construtoras são newSet() e toSet(list).
 
 set.add(35);
 set.addAll(otherSet);
@@ -280,8 +280,10 @@ new Date("2024-01-15", "yyyy-MM-dd", "en-US", "UTC")
 new Date(2024, 1, 15, 14, 30, 45)   // ano, mês, dia, hora, min, seg, [timeZone]
 
 date.addYears(n); date.addMonths(n); date.addWeeks(n); date.addDays(n);
-date.addHours(n); date.addMinutes(n); date.addSeconds(n); date.addMilliseconds(n);
-// cada add* modifica a data in-place e também retorna o valor modificado
+date.addHours(n); date.addMinutes(n); date.addSeconds(n); date.addNanos(n);
+// Todos são `public void`: modificam a data in-place e NÃO retornam nada.
+// `x = date.addDays(1)` deixa x nulo — encadear/atribuir não funciona.
+// Não existe addMilliseconds: a menor unidade é addNanos (use n * 1000000).
 ```
 
 ### Geofencing

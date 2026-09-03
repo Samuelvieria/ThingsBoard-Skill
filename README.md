@@ -65,6 +65,25 @@ node scripts/verify-nodes.mjs --update-header    # grava tag + commit SHA no cab
 O cabeçalho do catálogo carrega a proveniência exata (tag, commit, data), então "verificado
 no código-fonte oficial" é uma afirmação checável, não uma alegação.
 
+### `scripts/verify-tbel.mjs` — as funções TBEL documentadas existem?
+
+`references/tbel.md` é o maior arquivo do pack. Uma função inventada ali é exatamente o
+modo de falha que o pack existe para evitar — o agente escreve `date.addMilliseconds(500)`
+e o script quebra em runtime dentro de um rule node.
+
+```bash
+node scripts/verify-tbel.mjs                  # contra o último release
+node scripts/verify-tbel.mjs --ref v4.3.1.4 --json
+```
+
+Cruza os identificadores usados em blocos de código do doc contra quatro fontes upstream:
+`TbUtils.java` (as globais registradas via `addImport`), `TbDate.java`,
+`TbelCfTsRollingArg.java` (janela rolante de Calculated Fields) e o repo separado
+`thingsboard/tbel` (métodos de coleção do fork do MVEL).
+
+Achou dois erros reais na primeira execução: `addMilliseconds` (só existe `addNanos`) e
+`createSet` (as construtoras são `newSet()` e `toSet(list)`).
+
 ### `scripts/skill-lint.mjs` — a description casa com o que o usuário digita?
 
 O modo de falha clássico de skill: o corpo está impecável e a `description` nunca dispara,
