@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: valida frontmatter, links e casamento de triggers
+      - name: valida segredos, frontmatter, links e casamento de triggers
         run: node scripts/skill-lint.mjs
 
   tbel-functions:

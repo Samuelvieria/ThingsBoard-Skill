@@ -19,6 +19,7 @@
  */
 
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
 const SKILLS_DIR = '.claude/skills';
@@ -76,6 +77,42 @@ function loadSkills() {
     skills.push({ dir, path: f, text, fm: parsed ? parsed.fm : null, raw: parsed ? parsed.raw : {}, body: parsed ? parsed.body : text });
   }
   return skills;
+}
+
+/* ----------------------------------------------------------------- segredos */
+
+/**
+ * Um arquivo `.example` é rastreado por definição — é para isso que ele serve. Quem
+ * preenche credencial nele commita segredo sem perceber, e o .gitignore não ajuda
+ * porque não é ele que está ignorado. Aconteceu neste repo. Vira invariante de CI.
+ */
+function cmdSecrets() {
+  out(C.b + '\nsecrets' + C.r + '   arquivos de exemplo devem conter só placeholders');
+  const files = ['.tb.env.example', '.env.example', '.env.tb.example'].filter(existsSync);
+  if (!files.length) { pass('nenhum arquivo .example para checar'); return; }
+
+  // Um valor é placeholder se for vazio, ou se contiver marca óbvia de exemplo.
+  const PLACEHOLDER = /^$|exemplo|example|changeme|your[-_]?|<.*>|\.\.\.|xxx+|placeholder/i;
+
+  for (const f of files) {
+    out('\n' + C.b + f + C.r);
+    for (const [i, line] of readFileSync(f, 'utf8').split(/\r?\n/).entries()) {
+      const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+      if (!m) continue;
+      const [, key, value] = m;
+      if (PLACEHOLDER.test(value)) { pass(key + ' = placeholder'); continue; }
+      fail(f + ':' + (i + 1) + ' — `' + key + '` tem valor real, não placeholder');
+      out('        arquivo .example é COMMITADO. Mova o valor para o arquivo ignorado.');
+    }
+  }
+
+  // O arquivo ignorado nunca pode estar rastreado, mesmo que alguém force o add.
+  for (const f of ['.tb.env', '.env.tb', '.env']) {
+    if (!existsSync(f)) continue;
+    const tracked = spawnSync('git', ['ls-files', '--error-unmatch', f], { stdio: 'pipe' }).status === 0;
+    if (tracked) fail(f + ' está RASTREADO pelo git — deveria estar só no .gitignore');
+    else pass(f + ' existe localmente e não está rastreado');
+  }
 }
 
 /* --------------------------------------------------------------- validate */
@@ -257,14 +294,16 @@ function cmdTriggers(skills) {
 /* -------------------------------------------------------------------- main */
 
 const skills = loadSkills();
+if (mode === 'secrets' || mode === 'all') cmdSecrets();
 if (mode === 'validate' || mode === 'all') cmdValidate(skills);
 if (mode === 'triggers' || mode === 'all') cmdTriggers(skills);
-if (!['validate', 'triggers', 'all'].includes(mode)) {
-  out('uso: node scripts/skill-lint.mjs [validate|triggers] [--verbose]');
+if (!['validate', 'triggers', 'secrets', 'all'].includes(mode)) {
+  out('uso: node scripts/skill-lint.mjs [validate|triggers|secrets] [--verbose]');
   process.exitCode = 2;
+} else {
+  out('');
+  out(errors ? C.red + errors + ' falha(s)' + C.r + (warns ? ', ' + warns + ' aviso(s)' : '')
+             : C.g + 'sem falhas' + C.r + (warns ? ', ' + warns + ' aviso(s)' : ''));
+  // else: senão isto sobrescreveria o exit 2 de "modo desconhecido" com 0
+  process.exitCode = errors ? 1 : 0;
 }
-
-out('');
-out(errors ? C.red + errors + ' falha(s)' + C.r + (warns ? ', ' + warns + ' aviso(s)' : '')
-           : C.g + 'sem falhas' + C.r + (warns ? ', ' + warns + ' aviso(s)' : ''));
-process.exitCode = errors ? 1 : 0;
