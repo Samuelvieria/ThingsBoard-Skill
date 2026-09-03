@@ -84,7 +84,9 @@ jobs:
           node -e 'process.exit(require("./report.json").clean ? 0 : 1)' && echo "clean=true" >> "$GITHUB_OUTPUT" || echo "clean=false" >> "$GITHUB_OUTPUT"
 
       - name: abre issue quando o upstream divergiu
-        if: steps.verify.outputs.clean == 'false' && github.event_name == 'schedule'
+        # workflow_dispatch junto com schedule para que o caminho de alerta seja
+        # testável sob demanda. Um alerta que nunca foi exercitado não é um alerta.
+        if: steps.verify.outputs.clean == 'false' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         uses: actions/github-script@v7
         with:
           script: |
