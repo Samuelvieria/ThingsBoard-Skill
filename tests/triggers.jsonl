@@ -62,3 +62,21 @@
 {"q": "remover item do menu lateral do thingsboard no codigo", "skill": "tb-fork-build"}
 {"q": "traduzir a interface do thingsboard pra pt-br no fonte", "skill": "tb-fork-build"}
 {"q": "os emails de ativacao ainda dizem ThingsBoard depois do white label", "skill": "tb-fork-build"}
+
+{"q": "meu device modbus nao aparece no thingsboard", "skill": "tb-gateway"}
+{"q": "o valor do sensor chega multiplicado por 10", "skill": "tb-gateway"}
+{"q": "timeout no slave modbus, unitId errado?", "skill": "tb-gateway"}
+{"q": "como configuro o tb_gateway.json pra falar com opcua", "skill": "tb-gateway"}
+{"q": "o gateway perde telemetria quando cai a rede", "skill": "tb-gateway"}
+{"q": "byteOrder e wordOrder do modbus, qual uso", "skill": "tb-gateway"}
+{"q": "converter customizado em python pra payload binario", "skill": "tb-gateway"}
+{"q": "conectar PLC siemens s7 no thingsboard", "skill": "tb-gateway"}
+
+{"q": "esse menu nao aparece na minha instalacao do thingsboard", "skill": "tb-ce-vs-pe"}
+{"q": "endpoint da api devolve 404 mas esta na documentacao", "skill": "tb-ce-vs-pe"}
+{"q": "como gero relatorio pdf sem ter o PE", "skill": "tb-ce-vs-pe"}
+{"q": "o banco ta enchendo, como apago telemetria antiga", "skill": "tb-ce-vs-pe"}
+{"q": "TTL de telemetria, onde configuro", "skill": "tb-ce-vs-pe"}
+{"q": "community edition tem limite de devices?", "skill": "tb-ce-vs-pe"}
+{"q": "criar perfil de permissao customizado no community edition", "skill": "tb-ce-vs-pe"}
+{"q": "como agendo tarefa recorrente sem o scheduler do PE", "skill": "tb-ce-vs-pe"}

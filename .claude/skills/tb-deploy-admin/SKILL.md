@@ -3,7 +3,7 @@ name: tb-deploy-admin
 description: Infraestrutura do ThingsBoard PE/CE self-hosted — Docker Compose (monolito e microsserviços), PostgreSQL, Cassandra, TimescaleDB, Kafka, licença PE, upgrade de versão, backup e restore, HA, reverse proxy Nginx/Traefik. Use ao instalar, subir, atualizar, escalar ou consertar a plataforma em si (não a lógica dentro dela). Sintomas típicos - o container não sobe ou reinicia em loop, "Port 443 is already in use", "connection refused" no banco, docker pull da imagem PE dá unauthorized, licença PE inválida ou expirada, lag crescente na fila do Kafka, dashboard não atualiza em tempo real porque o websocket está bloqueado pelo proxy, escolher banco para telemetria, logs em /var/log/thingsboard, migrar de versão sem pular major.
 ---
 
-# ThingsBoard Deploy & Administração (self-hosted / PE)
+# ThingsBoard Deploy & Administração (self-hosted, CE e PE)
 
 ## Antes de começar — fixe a versão e a edição primeiro
 

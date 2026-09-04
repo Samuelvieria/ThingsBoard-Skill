@@ -7,6 +7,13 @@ description: Widgets customizados (HTML/CSS/JS, controllerScript, ctx/self.ctx) 
 
 ## Antes de começar — parta de um export real
 
+> **Se o MCP oficial do ThingsBoard estiver conectado** ([`thingsboard/thingsboard-mcp`](https://github.com/thingsboard/thingsboard-mcp),
+> 120+ tools, funciona em CE e PE): use as tools dele para **ler e escrever dados** —
+> devices, assets, telemetria, alarmes, relações, OTA. São melhores nisso que qualquer
+> comando aqui. Use `scripts/tb.mjs` para o que o MCP **não** responde: qual endpoint
+> existe nesta versão (`api`, `spec`), quais rule nodes esta instância tem (`nodes`), e
+> se é CE ou PE (`check`). O MCP faz dado; esta skill faz contrato e conhecimento.
+
 O JSON de widget/dashboard é grande, com muitos campos opcionais que variam por versão e
 por tipo de widget. Montar do zero de memória é a forma mais rápida de produzir um JSON
 que o ThingsBoard aceita e não renderiza.

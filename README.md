@@ -10,12 +10,19 @@ Skills de ThingsBoard para Claude Code — e as ferramentas que fazem o agente
 | `tb-widgets-dashboards` | Widgets custom, `controllerScript`, datasources, entity alias, design |
 | `tb-deploy-admin` | Docker Compose, bancos, Kafka, licença PE, upgrade, backup, HA |
 | `tb-fork-build` | Fork do CE: white-label no `ui-ngx`, build Maven, imagens Docker, rebase |
+| `tb-gateway` | IoT Gateway: Modbus, OPC-UA, BACnet, converters — obrigatório em CE |
+| `tb-ce-vs-pe` | O que é só do PE e o substituto em CE; retenção e limpeza de dados |
 
 Cada skill tem um `SKILL.md` enxuto + `references/` carregado sob demanda.
 
-As quatro primeiras são sobre **operar** uma instância. `tb-fork-build` é outra camada:
-**modificar e recompilar** o ThingsBoard CE a partir do código-fonte (white-label,
-build Maven, imagem própria, manutenção do fork).
+As quatro primeiras são sobre **operar** uma instância. `tb-fork-build` é outra camada
+(**modificar e recompilar** o CE a partir do fonte), `tb-gateway` cobre a conectividade
+com equipamento industrial, e `tb-ce-vs-pe` responde "isso existe na minha edição?".
+
+**Se o [MCP oficial](https://github.com/thingsboard/thingsboard-mcp) estiver conectado**,
+use as tools dele para ler e escrever dados — devices, telemetria, alarmes. Estas skills
+cobrem o que o MCP não faz: contrato de API por versão, catálogo de rule nodes, conhecimento
+de edição, build e conectividade.
 
 ## O problema
 
@@ -104,6 +111,18 @@ Extrai todo caminho citado pela skill `tb-fork-build` e confere contra a árvore
 repositório. Aceita um fork como alvo, que é o uso real: "meu fork ainda tem esses
 arquivos depois de N customizações?"
 
+### `verify-gateway.mjs` — o conector existe na versão instalada?
+
+Conector inexistente é falha silenciosa: o gateway sobe, ignora a entrada desconhecida e
+nada acontece. E a lista do `master` não é a da release — `s7` (PLC Siemens) está no
+master e **não** está no release 3.8.4.
+
+```bash
+node scripts/verify-gateway.mjs --ref 3.8.4
+```
+
+Confere conectores e chaves de `tb_gateway.json` contra o fonte do repositório oficial.
+
 ### `skill-lint.mjs` — a description dispara mesmo?
 
 O modo de falha clássico: o corpo da skill está impecável e a `description` nunca casa,
@@ -118,13 +137,26 @@ node scripts/skill-lint.mjs triggers --verbose
   nunca pode estar rastreado
 - **`validate`** — frontmatter, tamanho, links relativos, e a armadilha do `: ` não-quotado
   em YAML, que trunca a description em silêncio e mata o disparo da skill
-- **`triggers`** — [tests/triggers.jsonl](tests/triggers.jsonl), 57 frases como usuários
+- **`triggers`** — [tests/triggers.jsonl](tests/triggers.jsonl), 73 frases como usuários
   realmente escrevem (`"Can't compile script: null"`, `"docker compose do tb não sobe"`),
   mais negativas que devem *não* disparar
 
 **Limite honesto:** é um scorer léxico, não o modelo. Prova que os termos discriminantes
 estão na description certa e não na errada — condição necessária, não suficiente. A
 validação real é rodar as frases no agente; este lint é o pré-voo barato de CI.
+
+### Rate limit da API do GitHub
+
+Os quatro verificadores consultam a API pública do GitHub, que permite **60 chamadas por
+hora sem autenticação**. Rodar todos algumas vezes seguidas esgota a cota e eles falham
+com **exit 2** (erro de ferramenta), que é distinto de **exit 1** (divergência real de
+conteúdo). Para uso local intensivo:
+
+```bash
+export GITHUB_TOKEN=<seu token com escopo public_repo>
+```
+
+No CI isso já está resolvido: cada job passa o `secrets.GITHUB_TOKEN`.
 
 ## O que essas ferramentas já encontraram
 
@@ -140,6 +172,7 @@ Todas achadas contra o código-fonte upstream, não contra documentação:
 | `tb-rest-api` | `scope` em `.../timeseries/{scope}` é path param, não `?scope=ANY` |
 | descriptions | 12 de 47 frases não casavam ou casavam com a skill errada (62% → 100%) |
 | `tb-fork-build` | `src/thingsboard.ico` estava sem o prefixo `ui-ngx/` — caminho que não resolve |
+| `tb-gateway` | `s7` existe no `master` e não no release 3.8.4 — planejar em cima dele quebra |
 
 ## Configuração
 

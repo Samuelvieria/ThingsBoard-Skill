@@ -7,6 +7,13 @@ description: REST API do ThingsBoard (CE/PE) — autenticação JWT, provisionam
 
 ## Antes de começar — verifique, não adivinhe
 
+> **Se o MCP oficial do ThingsBoard estiver conectado** ([`thingsboard/thingsboard-mcp`](https://github.com/thingsboard/thingsboard-mcp),
+> 120+ tools, funciona em CE e PE): use as tools dele para **ler e escrever dados** —
+> devices, assets, telemetria, alarmes, relações, OTA. São melhores nisso que qualquer
+> comando aqui. Use `scripts/tb.mjs` para o que o MCP **não** responde: qual endpoint
+> existe nesta versão (`api`, `spec`), quais rule nodes esta instância tem (`nodes`), e
+> se é CE ou PE (`check`). O MCP faz dado; esta skill faz contrato e conhecimento.
+
 Endpoints e schemas variam entre versões e entre CE/PE. **Não gere código de integração a
 partir das tabelas deste arquivo sem confirmar contra a instância alvo.** Existe uma
 ferramenta para isso — use antes de escrever a primeira linha:
