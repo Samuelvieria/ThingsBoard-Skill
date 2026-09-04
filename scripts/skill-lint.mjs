@@ -204,8 +204,9 @@ function tokens(s) {
  */
 function score(qTokens, descTokens, idf) {
   let s = 0;
+  let hits = 0;   // termos distintos que casaram, não só a soma dos pesos
   for (const t of new Set(qTokens)) {
-    if (descTokens.has(t)) { s += idf.get(t) || 1; continue; }
+    if (descTokens.has(t)) { s += idf.get(t) || 1; hits++; continue; }
     // Prefixo comum cobre flexão sem stemmer: alarme/alarmes, relacao/relacoes,
     // licenca/licenciamento. 5 chars é curto o bastante para pegar flexão e longo o
     // bastante para não colar palavras diferentes.
@@ -213,10 +214,10 @@ function score(qTokens, descTokens, idf) {
       if (d.length < 5 || t.length < 5) continue;
       let i = 0;
       while (i < d.length && i < t.length && d[i] === t[i]) i++;
-      if (i >= 5) { s += (idf.get(t) || 1) * 0.6; break; }
+      if (i >= 5) { s += (idf.get(t) || 1) * 0.6; hits++; break; }
     }
   }
-  return s;
+  return { score: s, hits };
 }
 
 function cmdTriggers(skills) {
@@ -243,13 +244,20 @@ function cmdTriggers(skills) {
   for (const c of cases) {
     const qt = tokens(c.q);
     const ranked = skills
-      .map((s) => ({ skill: s.dir, score: score(qt, descTokens.get(s.dir), idf) }))
+      .map((s) => {
+        const r = score(qt, descTokens.get(s.dir), idf);
+        return { skill: s.dir, score: r.score, hits: r.hits };
+      })
       .sort((a, b) => b.score - a.score);
     const top = ranked[0];
     const second = ranked[1];
 
     if (c.skill === null) {
-      if (top.score > 1.5) {
+      // Uma única palavra em comum não é match. "git rebase vs merge" compartilha
+      // exatamente um termo com uma skill de fork, e isso é coincidência de vocabulário,
+      // não intenção. Exigir 2 termos distintos evita ter que empobrecer a description
+      // removendo palavras que o usuário realmente digita.
+      if (top.score > 1.5 && top.hits >= 2) {
         falsePos++;
         fail('FALSO POSITIVO  "' + c.q + '"');
         out('        nenhuma skill deveria disparar, mas ' + top.skill + ' pontuou ' + top.score.toFixed(2));

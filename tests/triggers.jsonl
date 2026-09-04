@@ -51,3 +51,14 @@
 {"q": "escrever um teste unitario em pytest", "skill": null}
 {"q": "qual a diferenca entre git rebase e merge", "skill": null}
 {"q": "configurar eslint nesse projeto", "skill": null}
+
+{"q": "onde fica o scss do tema do thingsboard pra trocar as cores", "skill": "tb-fork-build"}
+{"q": "troquei o svg do logo e continua aparecendo o do thingsboard", "skill": "tb-fork-build"}
+{"q": "docker build no msa/tb-node da erro de sintaxe no Dockerfile", "skill": "tb-fork-build"}
+{"q": "JavaScript heap out of memory compilando o ui-ngx", "skill": "tb-fork-build"}
+{"q": "o build nao gera o arquivo .deb", "skill": "tb-fork-build"}
+{"q": "qual tag do CE usar como base do meu fork", "skill": "tb-fork-build"}
+{"q": "como faco rebase do fork numa versao nova sem perder as customizacoes", "skill": "tb-fork-build"}
+{"q": "remover item do menu lateral do thingsboard no codigo", "skill": "tb-fork-build"}
+{"q": "traduzir a interface do thingsboard pra pt-br no fonte", "skill": "tb-fork-build"}
+{"q": "os emails de ativacao ainda dizem ThingsBoard depois do white label", "skill": "tb-fork-build"}

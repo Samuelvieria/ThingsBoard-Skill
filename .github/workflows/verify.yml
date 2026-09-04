@@ -42,6 +42,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/verify-tbel.mjs
 
+  fork-paths:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: confere se os caminhos de arquivo da skill de fork existem
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/verify-fork-paths.mjs --ref v4.3.1.4
+
   node-catalog:
     runs-on: ubuntu-latest
     permissions:

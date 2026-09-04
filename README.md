@@ -9,9 +9,13 @@ Skills de ThingsBoard para Claude Code — e as ferramentas que fazem o agente
 | `tb-rule-engine` | Rule chains, catálogo de nodes, `connections[].type`, TBEL, debug |
 | `tb-widgets-dashboards` | Widgets custom, `controllerScript`, datasources, entity alias, design |
 | `tb-deploy-admin` | Docker Compose, bancos, Kafka, licença PE, upgrade, backup, HA |
+| `tb-fork-build` | Fork do CE: white-label no `ui-ngx`, build Maven, imagens Docker, rebase |
 
-Cada skill tem um `SKILL.md` enxuto + `references/` carregado sob demanda. Foco em PE
-self-hosted, com notas de CE onde relevante.
+Cada skill tem um `SKILL.md` enxuto + `references/` carregado sob demanda.
+
+As quatro primeiras são sobre **operar** uma instância. `tb-fork-build` é outra camada:
+**modificar e recompilar** o ThingsBoard CE a partir do código-fonte (white-label,
+build Maven, imagem própria, manutenção do fork).
 
 ## O problema
 
@@ -85,6 +89,21 @@ Cruza os identificadores usados em blocos de código contra quatro fontes upstre
 `TbelCfTsRollingArg.java` (janela rolante de Calculated Fields) e o repo separado
 `thingsboard/tbel` (métodos de coleção do fork do MVEL).
 
+### `verify-fork-paths.mjs` — os caminhos de arquivo existem?
+
+Trabalho de fork mexe em caminhos do código-fonte, e caminho inventado é a alucinação mais
+cara ali: parece certo, passa na revisão, e só falha depois de um build de Maven de dezenas
+de minutos. Pior, caminhos do ThingsBoard mudam entre versões.
+
+```bash
+node scripts/verify-fork-paths.mjs --ref v4.3.1.4
+node scripts/verify-fork-paths.mjs --repo <owner>/<fork> --ref <branch>
+```
+
+Extrai todo caminho citado pela skill `tb-fork-build` e confere contra a árvore real do
+repositório. Aceita um fork como alvo, que é o uso real: "meu fork ainda tem esses
+arquivos depois de N customizações?"
+
 ### `skill-lint.mjs` — a description dispara mesmo?
 
 O modo de falha clássico: o corpo da skill está impecável e a `description` nunca casa,
@@ -99,7 +118,7 @@ node scripts/skill-lint.mjs triggers --verbose
   nunca pode estar rastreado
 - **`validate`** — frontmatter, tamanho, links relativos, e a armadilha do `: ` não-quotado
   em YAML, que trunca a description em silêncio e mata o disparo da skill
-- **`triggers`** — [tests/triggers.jsonl](tests/triggers.jsonl), 47 frases como usuários
+- **`triggers`** — [tests/triggers.jsonl](tests/triggers.jsonl), 57 frases como usuários
   realmente escrevem (`"Can't compile script: null"`, `"docker compose do tb não sobe"`),
   mais negativas que devem *não* disparar
 
@@ -120,6 +139,7 @@ Todas achadas contra o código-fonte upstream, não contra documentação:
 | `node-types.md` | FQN abreviado (`...TbSynchronizationEndNode`) que um agente copiaria literal |
 | `tb-rest-api` | `scope` em `.../timeseries/{scope}` é path param, não `?scope=ANY` |
 | descriptions | 12 de 47 frases não casavam ou casavam com a skill errada (62% → 100%) |
+| `tb-fork-build` | `src/thingsboard.ico` estava sem o prefixo `ui-ngx/` — caminho que não resolve |
 
 ## Configuração
 
