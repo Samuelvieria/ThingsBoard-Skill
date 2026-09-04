@@ -31,7 +31,6 @@ diagnosticar: o gateway sobe, ignora a entrada desconhecida, e nada acontece.
 | `rest` | Gateway expõe endpoint REST para o equipamento chamar | `rest.json` |
 | `request` | Gateway chama endpoint HTTP externo (polling) | `request.json` |
 | `socket` | TCP/UDP cru | `socket.json` |
-| `profinet` | inventado
 | `xmpp` | XMPP | `xmpp.json` |
 
 ## Disponibilidade por versão
