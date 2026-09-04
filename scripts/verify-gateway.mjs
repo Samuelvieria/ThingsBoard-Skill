@@ -26,6 +26,14 @@ const CONFIG_DIR = 'thingsboard_gateway/config/';
 const DOC = '.claude/skills/tb-gateway/references/connectors.md';
 const SKILL = '.claude/skills/tb-gateway/SKILL.md';
 
+// A skill também documenta o protocolo MQTT de gateway, que é definido na PLATAFORMA e
+// não no serviço gateway. Tópico errado aqui falha em silêncio: o broker aceita o publish
+// e a mensagem nunca vira telemetria.
+const TB_REPO = 'thingsboard/thingsboard';
+const TB_REF = 'v4.3.1.4';
+const TOPICS_SRC = 'common/data/src/main/java/org/thingsboard/server/common/data/device/profile/MqttTopics.java';
+const TB_YML = 'application/src/main/resources/thingsboard.yml';
+
 /**
  * Conectores citados nos docs que sabidamente NÃO estão em toda release. Documentá-los é
  * correto — o ponto é justamente avisar. Não podem contar como erro, mas a seção
@@ -56,12 +64,14 @@ async function gh(path) {
   return res.json();
 }
 
-async function rawFile(ref, path) {
-  const res = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + ref + '/' + path,
+async function rawFile2(repo, ref, path) {
+  const res = await fetch('https://raw.githubusercontent.com/' + repo + '/' + ref + '/' + path,
     { headers: { 'User-Agent': 'tb-skills-verify-gateway' } });
-  if (!res.ok) throw new Error('raw ' + path + ' -> HTTP ' + res.status);
+  if (!res.ok) throw new Error('raw ' + repo + '/' + path + ' -> HTTP ' + res.status);
   return res.text();
 }
+
+const rawFile = (ref, path) => rawFile2(REPO, ref, path);
 
 /**
  * Recorta uma seção do markdown pelo título, até o próximo heading de mesmo nível.
@@ -181,11 +191,60 @@ async function main() {
   }).sort();
   log(C.b + 'config' + C.r + '   ' + realKeys.size + ' chaves reais, ' + claimedKeys.size + ' citadas na skill');
 
+  // --- protocolo MQTT de gateway: definido na plataforma, não no serviço gateway ---
+  const topicsJava = await rawFile2(TB_REPO, TB_REF, TOPICS_SRC);
+  const consts = Object.fromEntries(
+    [...topicsJava.matchAll(/(?:private|public)\s+static\s+final\s+String\s+(\w+)\s*=\s*([^;]+);/g)]
+      .map((m) => [m[1], m[2].trim()]));
+  // resolve concatenação de constantes: BASE_GATEWAY_API_TOPIC + TELEMETRY
+  const resolve = (expr, depth = 0) => {
+    if (depth > 6) return null;
+    return expr.split('+').map((p) => {
+      const t = p.trim();
+      const lit = t.match(/^"(.*)"$/);
+      if (lit) return lit[1];
+      return consts[t] !== undefined ? resolve(consts[t], depth + 1) : null;
+    }).reduce((a, b) => (a === null || b === null ? null : a + b), '');
+  };
+  // Os BASE_* ("v1/gateway", "v1/devices/me") sao prefixos, nao topicos. Deixa-los no
+  // conjunto faz a tolerancia por prefixo aceitar QUALQUER coisa sob eles — testado:
+  // "v1/gateway/desconectar" passava batido.
+  const BASES = new Set(['v1/gateway', 'v1/devices/me', 'v1/devices', 'v2/devices/me']);
+  const realTopics = new Set();
+  for (const [k, v] of Object.entries(consts)) {
+    if (!/GATEWAY|DEVICE_(TELEMETRY|ATTRIBUTES)_TOPIC/.test(k)) continue;
+    const t = resolve(v);
+    if (t && t.startsWith('v1/') && !BASES.has(t.replace(/\/$/, ''))) realTopics.add(t);
+  }
+
+  const claimedTopics = new Set(
+    [...bothMd.matchAll(/`(v1\/(?:gateway|devices)\/[\w/+#.-]*)`/g)].map((m) => m[1])
+      .filter((t) => !BASES.has(t.replace(/\/$/, ''))));
+  const topicosInexistentes = [...claimedTopics].filter((t) => {
+    const norm = (s) => s.replace(/\/$/, '');
+    if (realTopics.has(t) || realTopics.has(norm(t))) return false;
+    // tolera sufixo de wildcard sobre um topico real COMPLETO (ex. .../response/+),
+    // exigindo a barra para nao casar "disconnect" com "desconectar" por prefixo parcial
+    for (const r of realTopics) {
+      if (norm(t).startsWith(norm(r) + '/') || norm(r).startsWith(norm(t) + '/')) return false;
+    }
+    return true;
+  }).sort();
+
+  // --- limite de payload MQTT, citado na skill como número concreto ---
+  const yml = await rawFile2(TB_REPO, TB_REF, TB_YML);
+  const maxPayload = (yml.match(/NETTY_MAX_PAYLOAD_SIZE:(\d+)/) || [])[1] || null;
+  const payloadErrado = maxPayload && /NETTY_MAX_PAYLOAD_SIZE/.test(bothMd) && !bothMd.includes(maxPayload);
+  log(C.b + 'protocolo' + C.r + ' ' + realTopics.size + ' tópicos MQTT no fonte da plataforma, '
+    + claimedTopics.size + ' citados' + (maxPayload ? ' | payload máx ' + maxPayload : ''));
+
   const report = {
     repo: REPO, ref, sha, date: new Date().toISOString().slice(0, 10),
     connectorsUpstream: real.size, connectorsDocumented: claimed.size,
     inexistentes, naoDocumentados, chavesInexistentes, avisoFaltando,
-    clean: inexistentes.length === 0 && chavesInexistentes.length === 0 && avisoFaltando.length === 0,
+    topicosInexistentes, maxPayload, payloadErrado,
+    clean: inexistentes.length === 0 && chavesInexistentes.length === 0
+      && avisoFaltando.length === 0 && topicosInexistentes.length === 0 && !payloadErrado,
   };
 
   if (UPDATE && report.clean) {
@@ -212,6 +271,17 @@ async function main() {
     }
     if (avisoFaltando.length) {
       out(C.red + 'RESSALVA DE VERSÃO SUMIU DO DOC' + C.r + ': ' + avisoFaltando.join(', '));
+      out('');
+    }
+    if (topicosInexistentes.length) {
+      out(C.red + 'TÓPICOS MQTT QUE NÃO EXISTEM' + C.r + ' na plataforma (' + topicosInexistentes.length + '):');
+      topicosInexistentes.forEach((t) => out('  ' + t));
+      out(C.d + '  Tópico errado falha em silêncio: o broker aceita o publish e nada vira telemetria.' + C.r);
+      out('');
+    }
+    if (payloadErrado) {
+      out(C.red + 'LIMITE DE PAYLOAD DIVERGENTE' + C.r + ': o fonte diz ' + maxPayload
+        + ', a skill cita outro valor');
       out('');
     }
     if (naoDocumentados.length) {

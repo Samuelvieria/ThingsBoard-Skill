@@ -1,6 +1,6 @@
 ---
 name: tb-gateway
-description: 'ThingsBoard IoT Gateway — conectar equipamento industrial que não fala MQTT/HTTP nativo (Modbus, OPC-UA, BACnet, S7, SNMP, KNX, CAN, BLE, OCPP, ODBC, FTP, REST, socket) ao ThingsBoard. Use ao configurar tb_gateway.json ou um arquivo de conector, mapear registrador Modbus para chave de telemetria, escrever converter uplink/downlink, ou depurar device que não aparece na plataforma. Em CE o Gateway é obrigatório para esses protocolos, porque Platform Integrations é recurso só do PE. Sintomas típicos - o device não aparece no ThingsBoard, o gateway conecta mas não envia telemetria, "Failed to connect to broker", timeout no slave Modbus, valor lido vem trocado ou multiplicado por 10, byteOrder e wordOrder, unitId errado, o gateway perde dados quando cai a rede, converter customizado em Python, RPC do dashboard não chega no equipamento.'
+description: 'ThingsBoard IoT Gateway e a API MQTT de gateway — conectar equipamento industrial que não fala MQTT/HTTP nativo (Modbus, OPC-UA, BACnet, S7, SNMP, KNX, CAN, BLE, OCPP, ODBC, FTP, socket) ou escrever seu próprio publicador nos tópicos v1/gateway/connect, telemetry e attributes. Use ao configurar tb_gateway.json ou um conector, mapear registrador Modbus para chave de telemetria, escrever converter, ou depurar envio de dados. Em CE o Gateway é obrigatório, porque Platform Integrations é só do PE. Sintomas típicos - o device não aparece no ThingsBoard, timeout no slave Modbus, valor lido vem multiplicado por 10, byteOrder e wordOrder, unitId errado, perde dados quando cai a rede, publisher lento porque manda um ponto por mensagem em vez de lote, tamanho máximo de payload MQTT, handshake TLS falha contra instância on-premise com certificado self-signed, RPC do dashboard não chega no equipamento.'
 ---
 
 # ThingsBoard IoT Gateway
@@ -148,6 +148,58 @@ substituição por `${expressao}`:
 - `${campo}` lê do payload JSON; a regex lê do tópico. São mecanismos diferentes.
 - `"type": "custom"` permite converter em Python próprio, para payload binário ou
   proprietário. É a saída quando o payload não é JSON.
+
+## Publicar direto na API MQTT de gateway (sem usar o serviço)
+
+Não é obrigatório rodar o Gateway em Python. Qualquer programa pode falar o **mesmo
+protocolo MQTT** e publicar em nome de vários devices — é o que faz um conversor próprio
+que lê arquivo de instrumento e envia para a plataforma.
+
+Tópicos, conforme `MqttTopics.java` no fonte do ThingsBoard (prefixo `v1/gateway`):
+
+| Tópico | Payload |
+|---|---|
+| `v1/gateway/connect` | `{"device": "Piezometro-01"}` — registra o device filho |
+| `v1/gateway/telemetry` | `{"Piezometro-01": [{"ts": 1773585000000, "values": {...}}, …]}` |
+| `v1/gateway/attributes` | `{"Piezometro-01": {"serial": "...", "versao": "..."}}` |
+| `v1/gateway/disconnect` | `{"device": "Piezometro-01"}` |
+| `v1/gateway/rpc` | RPC vindo da plataforma para o device filho |
+| `v1/gateway/attributes/request` / `/response` | consulta de atributo do lado do device |
+
+O **username** do MQTT é o access token do device gateway; não há senha. Porta 1883, ou
+8883 com TLS.
+
+### Envie em lote, não ponto a ponto
+
+O array de `v1/gateway/telemetry` aceita **vários pontos por device e vários devices por
+mensagem**. Publicar um ponto por mensagem, esperando o ack de cada, é o erro de
+desempenho mais comum em publicador próprio: um mês de leitura horária vira 720 mensagens
+e 720 round-trips, quando caberia em poucas.
+
+O teto é o **payload máximo do transporte MQTT do ThingsBoard: 65536 bytes**
+(`NETTY_MAX_PAYLOAD_SIZE` no `thingsboard.yml`). Mensagem maior é rejeitada.
+
+Por isso **agrupe por bytes acumulados, não por contagem fixa**. Um ponto com 5 chaves tem
+~150 bytes; um ponto de ShapeArray com 150 chaves passa de 3 KB. Um `chunk_size` fixo que
+funciona num caso estoura no outro. Feche o lote quando o JSON serializado passar de
+~48 KB, deixando folga para overhead.
+
+Se o publicador passar pelo **serviço** Gateway em vez de falar direto com a plataforma,
+vale também o `maxPayloadSizeBytes` do `tb_gateway.json`, que tem default bem menor.
+
+### Reconexão no meio do envio
+
+Publicação longa cai. Verifique a conexão a cada lote e reconecte antes de publicar, em
+vez de descobrir pelo timeout do ack — com QoS 1 e ack de dezenas de segundos, uma queda
+no meio de um envio grande custa o restante do lote.
+
+### TLS contra instância on-premise
+
+`cert_reqs=CERT_REQUIRED` sem informar a CA valida contra o trust store do sistema
+operacional. Instalação on-premise atrás de Caddy/Nginx com certificado corporativo ou
+self-signed **não está nesse trust store**, e a conexão falha com erro de handshake pouco
+descritivo. Aponte a CA da planta explicitamente (em paho-mqtt, `tls_set(ca_certs=...)`).
+Desligar a verificação resolve o sintoma e cria um problema pior.
 
 ## Sentido inverso: RPC e attributeUpdates
 

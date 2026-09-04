@@ -80,3 +80,9 @@
 {"q": "community edition tem limite de devices?", "skill": "tb-ce-vs-pe"}
 {"q": "criar perfil de permissao customizado no community edition", "skill": "tb-ce-vs-pe"}
 {"q": "como agendo tarefa recorrente sem o scheduler do PE", "skill": "tb-ce-vs-pe"}
+
+{"q": "publicar telemetria em nome de varios devices por mqtt", "skill": "tb-gateway"}
+{"q": "qual o topico mqtt v1/gateway/telemetry aceita array?", "skill": "tb-gateway"}
+{"q": "meu publisher manda 1 ponto por mensagem e ta lento", "skill": "tb-gateway"}
+{"q": "qual o tamanho maximo de payload mqtt do thingsboard", "skill": "tb-gateway"}
+{"q": "handshake TLS falha contra thingsboard on-premise com certificado proprio", "skill": "tb-gateway"}
